@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { participeVerbs, Verb } from "@/data/verbs";
+import { SETTINGS } from "@/constants/settings";
 
 export default function ParticipePage() {
   const [shuffledVerbs, setShuffledVerbs] = useState<Verb[]>([]);
@@ -34,11 +35,13 @@ export default function ParticipePage() {
     });
     setIsFlipped(true);
 
-    // Automatically move to the next card
-    setTimeout(() => {
-      nextCard();
-    }, isCorrect ? 1800 : 4000);
-    };
+    // Automatically move to the next card ONLY if correct
+    if (isCorrect) {
+      setTimeout(() => {
+        nextCard();
+      }, SETTINGS.SUCCESS_DELAY);
+    }
+  };
 
   const nextCard = () => {
     setIsFlipped(false);
@@ -77,9 +80,10 @@ export default function ParticipePage() {
 
       <div className="relative h-64 w-full max-w-md perspective-1000">
         <div
+          onClick={() => (isFlipped && !feedback?.isCorrect ? nextCard() : null)}
           className={`relative h-full w-full transition-transform duration-500 preserve-3d ${
             isFlipped ? "rotate-y-180" : ""
-          }`}
+          } ${isFlipped && !feedback?.isCorrect ? "cursor-pointer" : "cursor-default"}`}
         >
           {/* Front of Card */}
           <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-blue-100 bg-white p-8 shadow-xl backface-hidden dark:border-zinc-800 dark:bg-zinc-900">
@@ -108,6 +112,11 @@ export default function ParticipePage() {
                 {currentVerb.participe}
               </h2>
               <p className="mt-4 font-medium text-white/90">{feedback?.message}</p>
+              {!feedback?.isCorrect && (
+                <p className="mt-8 text-sm text-white/70 italic animate-pulse">
+                  Click card to continue
+                </p>
+              )}
             </div>
           </div>
         </div>

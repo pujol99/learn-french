@@ -8,24 +8,21 @@ import { SETTINGS } from "@/constants/settings";
 interface Person {
   pronoun: string;
   reflexive: string;
-  aux_avoir: string;
-  aux_etre: string;
-  isPlural: boolean;
-  isFeminine: boolean;
+  ending: string;
 }
 
 const persons: Person[] = [
-  { pronoun: "Je", reflexive: "me", aux_avoir: "ai", aux_etre: "suis", isPlural: false, isFeminine: false },
-  { pronoun: "Tu", reflexive: "te", aux_avoir: "as", aux_etre: "es", isPlural: false, isFeminine: false },
-  { pronoun: "Il", reflexive: "se", aux_avoir: "a", aux_etre: "est", isPlural: false, isFeminine: false },
-  { pronoun: "Elle", reflexive: "se", aux_avoir: "a", aux_etre: "est", isPlural: false, isFeminine: true },
-  { pronoun: "Nous", reflexive: "nous", aux_avoir: "avons", aux_etre: "sommes", isPlural: true, isFeminine: false },
-  { pronoun: "Vous", reflexive: "vous", aux_avoir: "avez", aux_etre: "êtes", isPlural: true, isFeminine: false },
-  { pronoun: "Ils", reflexive: "se", aux_avoir: "ont", aux_etre: "sont", isPlural: true, isFeminine: false },
-  { pronoun: "Elles", reflexive: "se", aux_avoir: "ont", aux_etre: "sont", isPlural: true, isFeminine: true },
+  { pronoun: "Je", reflexive: "me", ending: "ais" },
+  { pronoun: "Tu", reflexive: "te", ending: "ais" },
+  { pronoun: "Il", reflexive: "se", ending: "ait" },
+  { pronoun: "Elle", reflexive: "se", ending: "ait" },
+  { pronoun: "Nous", reflexive: "nous", ending: "ions" },
+  { pronoun: "Vous", reflexive: "vous", ending: "iez" },
+  { pronoun: "Ils", reflexive: "se", ending: "aient" },
+  { pronoun: "Elles", reflexive: "se", ending: "aient" },
 ];
 
-export default function PasseComposePage() {
+export default function ImparfaitPage() {
   const [shuffledVerbs, setShuffledVerbs] = useState<Verb[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentPerson, setCurrentPerson] = useState<Person>(persons[0]);
@@ -53,51 +50,43 @@ export default function PasseComposePage() {
   };
 
   const getSolution = (verb: Verb, person: Person, negated: boolean) => {
-    let auxiliary = verb.auxiliary === "avoir" ? person.aux_avoir : person.aux_etre;
-    let participe = verb.participe;
+    let stem = verb.imparfaitStem;
+    let conjugated = stem + person.ending;
     let pronoun = person.pronoun;
     let reflexive = verb.isReflexive ? person.reflexive : "";
 
-    // Agreement for "être" verbs (including reflexives)
-    if (verb.auxiliary === "être") {
-      if (person.isFeminine) participe += "e";
-      if (person.isPlural) participe += "s";
-    }
-
-    // Handle contractions (Je ai -> J'ai, me + vowel -> m', etc.)
     const startsWithVowel = (word: string) => /^[aeiouh]/i.test(word);
 
     let result = "";
 
     if (negated) {
       if (verb.isReflexive) {
-        // Je ne me suis pas lavé
+        // Je ne me lavais pas
         let ne = startsWithVowel(reflexive) ? "n'" : "ne ";
-        result = `${pronoun} ${ne}${reflexive} ${auxiliary} pas ${participe}`;
+        result = `${pronoun} ${ne}${reflexive} ${conjugated} pas`;
       } else {
-        // Je n'ai pas aimé / Je ne suis pas venu
-        let ne = startsWithVowel(auxiliary) ? "n'" : "ne ";
-        result = `${pronoun} ${ne}${auxiliary} pas ${participe}`;
+        // Je n'aimais pas / Je ne venais pas
+        let ne = startsWithVowel(conjugated) ? "n'" : "ne ";
+        result = `${pronoun} ${ne}${conjugated} pas`;
       }
     } else {
       if (verb.isReflexive) {
-        // Je me suis lavé / Je m'appelle (not in list but for logic)
+        // Je me lavais / Je m'appelais
         if (startsWithVowel(reflexive)) {
-          result = `${pronoun} ${reflexive.slice(0, -1)}'${auxiliary} ${participe}`;
+          result = `${pronoun} ${reflexive.slice(0, -1)}'${conjugated}`;
         } else {
-          result = `${pronoun} ${reflexive} ${auxiliary} ${participe}`;
+          result = `${pronoun} ${reflexive} ${conjugated}`;
         }
       } else {
-        // J'ai aimé / Je suis venu
-        if (pronoun.toLowerCase() === "je" && startsWithVowel(auxiliary)) {
-          result = `J'${auxiliary} ${participe}`;
+        // J'aimais / Je venais
+        if (pronoun.toLowerCase() === "je" && startsWithVowel(conjugated)) {
+          result = `J'${conjugated}`;
         } else {
-          result = `${pronoun} ${auxiliary} ${participe}`;
+          result = `${pronoun} ${conjugated}`;
         }
       }
     }
 
-    // Clean up double spaces if any
     return result.replace(/\s+/g, " ").trim();
   };
 
@@ -147,19 +136,19 @@ export default function PasseComposePage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 py-12 dark:bg-zinc-950">
-      <title>Passé Composé - Apprendre le Français</title>
+      <title>Imparfait - Apprendre le Français</title>
       <div className="mb-8 w-full max-w-md text-center">
         <Link
           href="/"
-          className="mb-6 inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+          className="mb-6 inline-flex items-center text-sm font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
         >
           ← Back to Dashboard
         </Link>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Le Passé Composé
+          L'Imparfait
         </h1>
         <p className="text-gray-600 dark:text-zinc-400">
-          Type the full phrase {isNegated && <span className="font-bold text-red-500 underline">(Negated)</span>}.
+          Type the full phrase in the Imperfect tense.
         </p>
       </div>
 
@@ -171,7 +160,7 @@ export default function PasseComposePage() {
           } ${isFlipped && !feedback?.isCorrect ? "cursor-pointer" : "cursor-default"}`}
         >
           {/* Front of Card */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-indigo-100 bg-white p-8 shadow-xl backface-hidden dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-emerald-100 bg-white p-8 shadow-xl backface-hidden dark:border-zinc-800 dark:bg-zinc-900">
             <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white text-center">
               {isNegated && <span className="text-red-500 mr-3">(Négation)</span>}
               {currentPerson.pronoun} + {currentVerb.infinitive}
@@ -191,7 +180,7 @@ export default function PasseComposePage() {
               <span className="mb-2 text-sm font-medium uppercase tracking-widest text-white/80">
                 Correct Form
               </span>
-              <h2 className="text-3xl font-extrabold text-white">
+              <h2 className="text-4xl font-extrabold text-white text-center px-4">
                 {feedback?.solution}
               </h2>
               <p className="mt-4 font-medium text-white/90">{feedback?.message}</p>
@@ -215,12 +204,12 @@ export default function PasseComposePage() {
             onChange={(e) => setUserGuess(e.target.value)}
             disabled={isFlipped}
             placeholder={`e.g. ${currentPerson.pronoun} ...`}
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-lg focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-lg focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
           />
           <button
             type="submit"
             disabled={isFlipped || !userGuess.trim()}
-            className="rounded-xl bg-indigo-600 px-6 py-3 font-bold text-white transition-all hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-zinc-800"
+            className="rounded-xl bg-emerald-600 px-6 py-3 font-bold text-white transition-all hover:bg-emerald-700 disabled:bg-gray-300 dark:disabled:bg-zinc-800"
           >
             Check
           </button>
