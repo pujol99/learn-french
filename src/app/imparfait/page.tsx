@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { verbs, Verb } from "@/data/verbs";
 import { SETTINGS } from "@/constants/settings";
+import { useStats } from "@/hooks/useStats";
 
 interface Person {
   pronoun: string;
@@ -23,6 +24,7 @@ const persons: Person[] = [
 ];
 
 export default function ImparfaitPage() {
+  const { successRate, addResult } = useStats("imparfait");
   const [shuffledVerbs, setShuffledVerbs] = useState<Verb[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentPerson, setCurrentPerson] = useState<Person>(persons[0]);
@@ -61,24 +63,20 @@ export default function ImparfaitPage() {
 
     if (negated) {
       if (verb.isReflexive) {
-        // Je ne me lavais pas
         let ne = startsWithVowel(reflexive) ? "n'" : "ne ";
         result = `${pronoun} ${ne}${reflexive} ${conjugated} pas`;
       } else {
-        // Je n'aimais pas / Je ne venais pas
         let ne = startsWithVowel(conjugated) ? "n'" : "ne ";
         result = `${pronoun} ${ne}${conjugated} pas`;
       }
     } else {
       if (verb.isReflexive) {
-        // Je me lavais / Je m'appelais
         if (startsWithVowel(reflexive)) {
           result = `${pronoun} ${reflexive.slice(0, -1)}'${conjugated}`;
         } else {
           result = `${pronoun} ${reflexive} ${conjugated}`;
         }
       } else {
-        // J'aimais / Je venais
         if (pronoun.toLowerCase() === "je" && startsWithVowel(conjugated)) {
           result = `J'${conjugated}`;
         } else {
@@ -92,6 +90,12 @@ export default function ImparfaitPage() {
 
   const checkAnswer = (e?: React.FormEvent) => {
     e?.preventDefault();
+    
+    if (isFlipped && feedback && !feedback.isCorrect) {
+      nextCard();
+      return;
+    }
+
     if (!userGuess.trim() || isFlipped) return;
 
     const currentVerb = shuffledVerbs[currentIndex];
@@ -101,6 +105,7 @@ export default function ImparfaitPage() {
     const normalizedSolution = solution.toLowerCase();
 
     const isCorrect = normalizedGuess === normalizedSolution;
+    addResult(isCorrect);
 
     setFeedback({
       isCorrect,
@@ -109,7 +114,6 @@ export default function ImparfaitPage() {
     });
     setIsFlipped(true);
 
-    // Automatically move to the next card ONLY if correct
     if (isCorrect) {
       setTimeout(() => {
         nextCard();
@@ -137,7 +141,7 @@ export default function ImparfaitPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 py-12 dark:bg-zinc-950">
       <title>Imparfait - Apprendre le Français</title>
-      <div className="mb-8 w-full max-w-md text-center">
+      <div className="mb-8 w-full max-w-md">
         <Link
           href="/"
           className="mb-6 inline-flex items-center text-sm font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
@@ -147,9 +151,16 @@ export default function ImparfaitPage() {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           L'Imparfait
         </h1>
-        <p className="text-gray-600 dark:text-zinc-400">
-          Type the full phrase in the Imperfect tense.
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-gray-600 dark:text-zinc-400">
+            Conjugate in the imperfect tense.
+          </p>
+          {successRate !== null && (
+            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+              Accuracy: {successRate}%
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="relative h-64 w-full max-w-md perspective-1000">
@@ -161,8 +172,8 @@ export default function ImparfaitPage() {
         >
           {/* Front of Card */}
           <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-emerald-100 bg-white p-8 shadow-xl backface-hidden dark:border-zinc-800 dark:bg-zinc-900">
-            <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white text-center">
-              {isNegated && <span className="text-red-500 mr-3">(Négation)</span>}
+            <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white text-center px-2">
+              {isNegated && <span className="text-red-500 mr-2">(Négation)</span>}
               {currentPerson.pronoun} + {currentVerb.infinitive}
             </h2>
             <p className="mt-4 text-base text-gray-500 dark:text-zinc-400 text-center">
@@ -180,7 +191,7 @@ export default function ImparfaitPage() {
               <span className="mb-2 text-sm font-medium uppercase tracking-widest text-white/80">
                 Correct Form
               </span>
-              <h2 className="text-4xl font-extrabold text-white text-center px-4">
+              <h2 className="text-4xl font-extrabold text-white text-center px-2">
                 {feedback?.solution}
               </h2>
               <p className="mt-4 font-medium text-white/90">{feedback?.message}</p>

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { verbs, Verb } from "@/data/verbs";
 import { SETTINGS } from "@/constants/settings";
+import { useStats } from "@/hooks/useStats";
 
 interface Person {
   pronoun: string;
@@ -26,6 +27,7 @@ const persons: Person[] = [
 ];
 
 export default function PasseComposePage() {
+  const { successRate, addResult } = useStats("passe-compose");
   const [shuffledVerbs, setShuffledVerbs] = useState<Verb[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentPerson, setCurrentPerson] = useState<Person>(persons[0]);
@@ -64,31 +66,26 @@ export default function PasseComposePage() {
       if (person.isPlural) participe += "s";
     }
 
-    // Handle contractions (Je ai -> J'ai, me + vowel -> m', etc.)
     const startsWithVowel = (word: string) => /^[aeiouh]/i.test(word);
 
     let result = "";
 
     if (negated) {
       if (verb.isReflexive) {
-        // Je ne me suis pas lavé
         let ne = startsWithVowel(reflexive) ? "n'" : "ne ";
         result = `${pronoun} ${ne}${reflexive} ${auxiliary} pas ${participe}`;
       } else {
-        // Je n'ai pas aimé / Je ne suis pas venu
         let ne = startsWithVowel(auxiliary) ? "n'" : "ne ";
         result = `${pronoun} ${ne}${auxiliary} pas ${participe}`;
       }
     } else {
       if (verb.isReflexive) {
-        // Je me suis lavé / Je m'appelle (not in list but for logic)
         if (startsWithVowel(reflexive)) {
           result = `${pronoun} ${reflexive.slice(0, -1)}'${auxiliary} ${participe}`;
         } else {
           result = `${pronoun} ${reflexive} ${auxiliary} ${participe}`;
         }
       } else {
-        // J'ai aimé / Je suis venu
         if (pronoun.toLowerCase() === "je" && startsWithVowel(auxiliary)) {
           result = `J'${auxiliary} ${participe}`;
         } else {
@@ -97,12 +94,17 @@ export default function PasseComposePage() {
       }
     }
 
-    // Clean up double spaces if any
     return result.replace(/\s+/g, " ").trim();
   };
 
   const checkAnswer = (e?: React.FormEvent) => {
     e?.preventDefault();
+    
+    if (isFlipped && feedback && !feedback.isCorrect) {
+      nextCard();
+      return;
+    }
+
     if (!userGuess.trim() || isFlipped) return;
 
     const currentVerb = shuffledVerbs[currentIndex];
@@ -112,6 +114,7 @@ export default function PasseComposePage() {
     const normalizedSolution = solution.toLowerCase();
 
     const isCorrect = normalizedGuess === normalizedSolution;
+    addResult(isCorrect);
 
     setFeedback({
       isCorrect,
@@ -120,7 +123,6 @@ export default function PasseComposePage() {
     });
     setIsFlipped(true);
 
-    // Automatically move to the next card ONLY if correct
     if (isCorrect) {
       setTimeout(() => {
         nextCard();
@@ -148,7 +150,7 @@ export default function PasseComposePage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 py-12 dark:bg-zinc-950">
       <title>Passé Composé - Apprendre le Français</title>
-      <div className="mb-8 w-full max-w-md text-center">
+      <div className="mb-8 w-full max-w-md">
         <Link
           href="/"
           className="mb-6 inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
@@ -158,9 +160,16 @@ export default function PasseComposePage() {
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Le Passé Composé
         </h1>
-        <p className="text-gray-600 dark:text-zinc-400">
-          Type the full phrase {isNegated && <span className="font-bold text-red-500 underline">(Negated)</span>}.
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-gray-600 dark:text-zinc-400">
+            Conjugate the full phrase.
+          </p>
+          {successRate !== null && (
+            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+              Accuracy: {successRate}%
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="relative h-64 w-full max-w-md perspective-1000">
@@ -172,8 +181,8 @@ export default function PasseComposePage() {
         >
           {/* Front of Card */}
           <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-indigo-100 bg-white p-8 shadow-xl backface-hidden dark:border-zinc-800 dark:bg-zinc-900">
-            <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white text-center">
-              {isNegated && <span className="text-red-500 mr-3">(Négation)</span>}
+            <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white text-center px-2">
+              {isNegated && <span className="text-red-500 mr-2">(Négation)</span>}
               {currentPerson.pronoun} + {currentVerb.infinitive}
             </h2>
             <p className="mt-4 text-base text-gray-500 dark:text-zinc-400 text-center">
@@ -191,7 +200,7 @@ export default function PasseComposePage() {
               <span className="mb-2 text-sm font-medium uppercase tracking-widest text-white/80">
                 Correct Form
               </span>
-              <h2 className="text-3xl font-extrabold text-white">
+              <h2 className="text-3xl font-extrabold text-white text-center px-2">
                 {feedback?.solution}
               </h2>
               <p className="mt-4 font-medium text-white/90">{feedback?.message}</p>

@@ -2,34 +2,95 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { participeVerbs, Verb } from "@/data/verbs";
+import { verbs, Verb } from "@/data/verbs";
 import { SETTINGS } from "@/constants/settings";
 import { useStats } from "@/hooks/useStats";
 
-export default function ParticipePage() {
-  const { successRate, addResult } = useStats("participe");
+interface Person {
+  pronoun: string;
+  reflexive: string;
+  ending: string;
+}
+
+const persons: Person[] = [
+  { pronoun: "Je", reflexive: "me", ending: "ai" },
+  { pronoun: "Tu", reflexive: "te", ending: "as" },
+  { pronoun: "Il", reflexive: "se", ending: "a" },
+  { pronoun: "Elle", reflexive: "se", ending: "a" },
+  { pronoun: "Nous", reflexive: "nous", ending: "ons" },
+  { pronoun: "Vous", reflexive: "vous", ending: "ez" },
+  { pronoun: "Ils", reflexive: "se", ending: "ont" },
+  { pronoun: "Elles", reflexive: "se", ending: "ont" },
+];
+
+export default function FuturSimplePage() {
+  const { successRate, addResult } = useStats("futur-simple");
   const [shuffledVerbs, setShuffledVerbs] = useState<Verb[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentPerson, setCurrentPerson] = useState<Person>(persons[0]);
+  const [isNegated, setIsNegated] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [userGuess, setUserGuess] = useState("");
-  const [feedback, setFeedback] = useState<{ isCorrect: boolean; message: string } | null>(null);
+  const [feedback, setFeedback] = useState<{ isCorrect: boolean; message: string; solution: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const accents = ["é", "è", "ê", "ë", "à", "â", "î", "ï", "ô", "û", "ù", "ç", "'"];
 
   useEffect(() => {
-    setShuffledVerbs([...participeVerbs].sort(() => Math.random() - 0.5));
+    setShuffledVerbs([...verbs].sort(() => Math.random() - 0.5));
+    setupRound();
   }, []);
+
+  const setupRound = () => {
+    setCurrentPerson(persons[Math.floor(Math.random() * persons.length)]);
+    setIsNegated(Math.random() > (1 - SETTINGS.NEGATION_CHANCE));
+  };
 
   const handleAccentClick = (accent: string) => {
     setUserGuess((prev) => prev + accent);
     inputRef.current?.focus();
   };
 
+  const getSolution = (verb: Verb, person: Person, negated: boolean) => {
+    let stem = verb.futureStem;
+    let conjugated = stem + person.ending;
+    let pronoun = person.pronoun;
+    let reflexive = verb.isReflexive ? person.reflexive : "";
+
+    const startsWithVowel = (word: string) => /^[aeiouh]/i.test(word);
+
+    let result = "";
+
+    if (negated) {
+      if (verb.isReflexive) {
+        let ne = startsWithVowel(reflexive) ? "n'" : "ne ";
+        result = `${pronoun} ${ne}${reflexive} ${conjugated} pas`;
+      } else {
+        let ne = startsWithVowel(conjugated) ? "n'" : "ne ";
+        result = `${pronoun} ${ne}${conjugated} pas`;
+      }
+    } else {
+      if (verb.isReflexive) {
+        if (startsWithVowel(reflexive)) {
+          result = `${pronoun} ${reflexive.slice(0, -1)}'${conjugated}`;
+        } else {
+          result = `${pronoun} ${reflexive} ${conjugated}`;
+        }
+      } else {
+        if (pronoun.toLowerCase() === "je" && startsWithVowel(conjugated)) {
+          result = `J'${conjugated}`;
+        } else {
+          result = `${pronoun} ${conjugated}`;
+        }
+      }
+    }
+
+    return result.replace(/\s+/g, " ").trim();
+  };
+
   const checkAnswer = (e?: React.FormEvent) => {
     e?.preventDefault();
     
-    // If already flipped and it was a mistake, Enter should move to next
     if (isFlipped && feedback && !feedback.isCorrect) {
       nextCard();
       return;
@@ -37,15 +98,22 @@ export default function ParticipePage() {
 
     if (!userGuess.trim() || isFlipped) return;
 
-    const isCorrect = userGuess.trim().toLowerCase() === currentVerb.participe.toLowerCase();
+    const currentVerb = shuffledVerbs[currentIndex];
+    const solution = getSolution(currentVerb, currentPerson, isNegated);
+    
+    const normalizedGuess = userGuess.trim().toLowerCase().replace(/\s+/g, " ");
+    const normalizedSolution = solution.toLowerCase();
+
+    const isCorrect = normalizedGuess === normalizedSolution;
     addResult(isCorrect);
+
     setFeedback({
       isCorrect,
-      message: isCorrect ? "Bravo ! Correct." : `Oups ! C'est "${currentVerb.participe}".`,
+      message: isCorrect ? "Bravo ! Correct." : "Oups !",
+      solution: solution,
     });
     setIsFlipped(true);
 
-    // Automatically move to the next card ONLY if correct
     if (isCorrect) {
       setTimeout(() => {
         nextCard();
@@ -59,7 +127,7 @@ export default function ParticipePage() {
     setFeedback(null);
     setTimeout(() => {
       setCurrentIndex((prev) => (prev + 1) % shuffledVerbs.length);
-      // Refocus input after card transition
+      setupRound();
       setTimeout(() => {
         inputRef.current?.focus();
       }, 150);
@@ -72,23 +140,23 @@ export default function ParticipePage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 py-12 dark:bg-zinc-950">
-      <title>Participe - Apprendre le Français</title>
+      <title>Futur Simple - Apprendre le Français</title>
       <div className="mb-8 w-full max-w-md">
         <Link
           href="/"
-          className="mb-6 inline-flex items-center text-sm font-semibold text-blue-600 hover:text-blue-500 dark:text-blue-400"
+          className="mb-6 inline-flex items-center text-sm font-semibold text-orange-600 hover:text-orange-500 dark:text-orange-400"
         >
           ← Back to Dashboard
         </Link>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Le Participe
+          Le Futur Simple
         </h1>
         <div className="flex items-center justify-between">
           <p className="text-gray-600 dark:text-zinc-400">
-            Guess the past participle.
+            Conjugate in the future tense.
           </p>
           {successRate !== null && (
-            <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+            <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
               Accuracy: {successRate}%
             </span>
           )}
@@ -103,14 +171,12 @@ export default function ParticipePage() {
           } ${isFlipped && !feedback?.isCorrect ? "cursor-pointer" : "cursor-default"}`}
         >
           {/* Front of Card */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-blue-100 bg-white p-8 shadow-xl backface-hidden dark:border-zinc-800 dark:bg-zinc-900">
-            <span className="mb-2 text-sm font-medium uppercase tracking-widest text-blue-500">
-              Infinitive
-            </span>
-            <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white">
-              {currentVerb.infinitive}
+          <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-2 border-orange-100 bg-white p-8 shadow-xl backface-hidden dark:border-zinc-800 dark:bg-zinc-900">
+            <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white text-center px-2">
+              {isNegated && <span className="text-red-500 mr-2">(Négation)</span>}
+              {currentPerson.pronoun} + {currentVerb.infinitive}
             </h2>
-            <p className="mt-2 text-base text-gray-500 dark:text-zinc-400">
+            <p className="mt-4 text-base text-gray-500 dark:text-zinc-400 text-center">
               ({currentVerb.translation})
             </p>
           </div>
@@ -123,14 +189,14 @@ export default function ParticipePage() {
           >
             <div className="relative z-10 flex flex-col items-center text-center">
               <span className="mb-2 text-sm font-medium uppercase tracking-widest text-white/80">
-                Participe Passé
+                Correct Form
               </span>
-              <h2 className="text-5xl font-extrabold text-white">
-                {currentVerb.participe}
+              <h2 className="text-4xl font-extrabold text-white text-center px-2">
+                {feedback?.solution}
               </h2>
               <p className="mt-4 font-medium text-white/90">{feedback?.message}</p>
               {!feedback?.isCorrect && (
-                <p className="mt-8 text-sm text-white/70 italic animate-pulse">
+                <p className="mt-8 text-sm text-white/70 italic animate-pulse text-center">
                   Click card to continue
                 </p>
               )}
@@ -148,13 +214,13 @@ export default function ParticipePage() {
             value={userGuess}
             onChange={(e) => setUserGuess(e.target.value)}
             disabled={isFlipped}
-            placeholder="Your guess..."
-            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-lg focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
+            placeholder={`e.g. ${currentPerson.pronoun} ...`}
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-lg focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
           />
           <button
             type="submit"
             disabled={isFlipped || !userGuess.trim()}
-            className="rounded-xl bg-blue-600 px-6 py-3 font-bold text-white transition-all hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-zinc-800"
+            className="rounded-xl bg-orange-600 px-6 py-3 font-bold text-white transition-all hover:bg-orange-700 disabled:bg-gray-300 dark:disabled:bg-zinc-800"
           >
             Check
           </button>
